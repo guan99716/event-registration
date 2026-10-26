@@ -1,0 +1,22 @@
+# OS and IDE files
+.DS_Store
+.vscode/
+.idea/
+
+# Environment variables and secrets
+.env
+
+# Virtual environments
+env/
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+
+
+# log
+*.log
+
+# Jupyter Notebook
+.ipynb_checkpoints
