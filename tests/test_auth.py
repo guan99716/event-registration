@@ -11,9 +11,19 @@ def test_register_success():
     )
 
     assert response.status_code == 201
+    assert "password" not in response.json()
 
 def test_register_invalid_email():
     response = client.post(
-        "/auth/register",json={"email":"invalid-email", "password":"Test123456!"}
+        "/auth/register", json={"email": "invalid-email", "password": "Test123456!"}
     )
-    assert response.status_code == 422
+    assert response.status_code == 422  
+
+def test_register_duplicate_email():
+    data = {
+        "email" : "duplicate@example.com",
+        "password": "Test123456!"
+    }
+    client.post("/auth/register", json=data)
+    response = client.post("/auth/register", json=data)
+    assert response.status_code == 409
