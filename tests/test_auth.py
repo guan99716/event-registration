@@ -11,3 +11,9 @@ def test_register_success():
     )
 
     assert response.status_code == 201
+
+def test_register_invalid_email():
+    response = client.post(
+        "/auth/register",json={"email":"invalid-email", "password":"Test123456!"}
+    )
+    assert response.status_code == 422
