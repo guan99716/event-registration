@@ -38,7 +38,6 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
     else:
         valid = password_hash.verify(user_data.password, existing_user.hashed_password)
         if valid:
-            return {"message":"Login successful"}
+            return {"message": "Login successful"}
         else:
             raise HTTPException(status_code=401, detail="Invalid email or password")
-             
