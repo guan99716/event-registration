@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from pwdlib import PasswordHash
 
-from app.schemas.user import UserCreate
+from app.schemas.user import UserCreate, UserLogin
 from app.models.user import User
 from app.database import get_db
 
@@ -23,6 +23,22 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
     else:
         hashed_password = password_hash.hash(user_data.password)
         new_user = User(email=user_data.email, hashed_password=hashed_password)
-        db.add(new_user) # add to session
-        db.commit() # write into db
-        return {"message":"註冊完成"}
+        db.add(new_user)  # add to session
+        db.commit()  # write into db
+        return {"message": "Registration complete"}
+
+
+@auth_router.post("/login", status_code=200)
+def login(user_data: UserLogin, db: Session = Depends(get_db)):
+    stmt = select(User).where(User.email == user_data.email)
+    result = db.execute(stmt)
+    existing_user = result.scalar_one_or_none()
+    if not existing_user:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    else:
+        valid = password_hash.verify(user_data.password, existing_user.hashed_password)
+        if valid:
+            return {"message":"Login successful"}
+        else:
+            raise HTTPException(status_code=401, detail="Invalid email or password")
+             
