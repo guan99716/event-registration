@@ -14,7 +14,7 @@ password_hash = PasswordHash.recommended()
 
 
 @auth_router.post("/register", status_code=201)
-def register(user_data: UserCreate, db: Session = Depends(get_db)):
+def register(user_data: UserCreate, db: Session = Depends(get_db)) -> dict[str,str]:
     stmt = select(User).where(User.email == user_data.email)
     result = db.execute(stmt)
     # email is unique, each email appears at most once
@@ -30,7 +30,7 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
 
 
 @auth_router.post("/login", status_code=200)
-def login(user_data: UserLogin, db: Session = Depends(get_db)):
+def login(user_data: UserLogin, db: Session = Depends(get_db)) -> dict[str,str]:
     stmt = select(User).where(User.email == user_data.email)
     result = db.execute(stmt)
     existing_user = result.scalar_one_or_none()

@@ -22,7 +22,8 @@ def test_register_invalid_email():
 
 def test_register_duplicate_email():
     data = {"email": "duplicate@example.com", "password": "Test123456!"}
-    client.post("/auth/register", json=data)
+    response = client.post("/auth/register", json=data)
+    assert response.status_code == 201
     response = client.post("/auth/register", json=data)
     assert response.status_code == 409
 
@@ -60,3 +61,5 @@ def test_login_nonexistent_user():
     }
     response = client.post("/auth/login", json=nonexistent_data)
     assert response.status_code == 401
+
+# token
