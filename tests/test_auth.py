@@ -36,6 +36,12 @@ def test_login_success():
     # use this data to login, and it is expected to login successfully
     response = client.post("/auth/login", json=data)
     assert response.status_code == 200
+    assert "access_token" in response.json()
+    assert (
+        isinstance(response.json()["access_token"], str)
+        and response.json()["access_token"] != ""
+    )
+    assert response.json()["token_type"] == "bearer"
 
 
 def test_login_wrong_password():

@@ -6,6 +6,7 @@ from pwdlib import PasswordHash
 from app.schemas.user import UserCreate, UserLogin
 from app.models.user import User
 from app.database import get_db
+from app.services.auth import create_access_token
 
 auth_router = APIRouter(prefix="/auth")
 
@@ -38,6 +39,7 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
     else:
         valid = password_hash.verify(user_data.password, existing_user.hashed_password)
         if valid:
-            return {"message": "Login successful"}
+            access_token = create_access_token(existing_user.id)
+            return {"access_token": access_token, "token_type": "bearer"}
         else:
             raise HTTPException(status_code=401, detail="Invalid email or password")
