@@ -1,5 +1,9 @@
 from fastapi.testclient import TestClient
 from app.main import app
+from app.services.auth import create_access_token, decode_access_token
+import pytest
+import jwt
+from datetime import datetime, timezone, timedelta
 
 client = TestClient(app)
 
@@ -62,4 +66,20 @@ def test_login_nonexistent_user():
     response = client.post("/auth/login", json=nonexistent_data)
     assert response.status_code == 401
 
+
 # token
+def test_decode_access_token():
+    access_token = create_access_token(123)
+    decoded_payload = decode_access_token(access_token)
+    assert decoded_payload["sub"] == "123"
+
+
+def test_decode_invalid_token():
+    payload = {
+        "sub": str(123),
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=15),
+    }
+    wrong_key = "this-is-a-different-test-secret-key-12345"
+    invalid_token = jwt.encode(payload=payload, key=wrong_key, algorithm="HS256")
+    with pytest.raises(jwt.InvalidSignatureError):
+        decode_access_token(invalid_token)
