@@ -1,9 +1,11 @@
 from fastapi.testclient import TestClient
-from app.main import app
-from app.services.auth import create_access_token, decode_access_token
 import pytest
 import jwt
 from datetime import datetime, timezone, timedelta
+
+from app.main import app
+from app.services.auth import create_access_token, decode_access_token
+from app.config import settings
 
 client = TestClient(app)
 
@@ -83,3 +85,13 @@ def test_decode_invalid_token():
     invalid_token = jwt.encode(payload=payload, key=wrong_key, algorithm="HS256")
     with pytest.raises(jwt.InvalidSignatureError):
         decode_access_token(invalid_token)
+
+
+def test_decode_expired_token():
+    payload = {
+        "sub": str(123),
+        "exp": datetime.now(timezone.utc) - timedelta(minutes=15),
+    }
+    token = jwt.encode(payload=payload, key=settings.jwt_secret_key, algorithm="HS256")
+    with pytest.raises(jwt.ExpiredSignatureError):
+        decode_access_token(token)

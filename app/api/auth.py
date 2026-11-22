@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from pwdlib import PasswordHash
@@ -9,6 +10,7 @@ from app.database import get_db
 from app.services.auth import create_access_token
 
 auth_router = APIRouter(prefix="/auth")
+bearer_auth = HTTPBearer()
 
 password_hash = PasswordHash.recommended()
 
@@ -43,3 +45,9 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)) -> dict[str, str]
             return {"access_token": access_token, "token_type": "bearer"}
         else:
             raise HTTPException(status_code=401, detail="Invalid email or password")
+
+# use Depencds(bearer_auth) to get bearer token
+@auth_router.get("/me", status_code=200)
+def get_current_user(auth: HTTPAuthorizationCredentials = Depends(bearer_auth)):
+    return {"token": auth.credentials}
+    
