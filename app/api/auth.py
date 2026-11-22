@@ -7,7 +7,7 @@ from pwdlib import PasswordHash
 from app.schemas.user import UserCreate, UserLogin
 from app.models.user import User
 from app.database import get_db
-from app.services.auth import create_access_token
+from app.services.auth import create_access_token, decode_access_token
 
 auth_router = APIRouter(prefix="/auth")
 bearer_auth = HTTPBearer()
@@ -39,6 +39,7 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)) -> dict[str, str]
     if not existing_user:
         raise HTTPException(status_code=401, detail="Invalid email or password")
     else:
+        # if password valid, return access token, else raise error
         valid = password_hash.verify(user_data.password, existing_user.hashed_password)
         if valid:
             access_token = create_access_token(existing_user.id)
@@ -49,5 +50,7 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)) -> dict[str, str]
 # use Depencds(bearer_auth) to get bearer token
 @auth_router.get("/me", status_code=200)
 def get_current_user(auth: HTTPAuthorizationCredentials = Depends(bearer_auth)):
-    return {"token": auth.credentials}
+    payload = decode_access_token(auth.credentials)
+    if "sub" not in payload:
+        raise HTTPException(status_code=401, detail="Unauthorized")
     

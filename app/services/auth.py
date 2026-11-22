@@ -13,6 +13,9 @@ def create_access_token(user_id: int) -> str:
 
 def decode_access_token(token: str) -> dict:
     decoded_payload = jwt.decode(
-        jwt=token, key=settings.jwt_secret_key, algorithms=["HS256"]
+        jwt=token,
+        key=settings.jwt_secret_key,
+        algorithms=["HS256"],
+        options={"require": ["sub", "exp"]},
     )
     return decoded_payload
