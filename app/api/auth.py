@@ -3,6 +3,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from pwdlib import PasswordHash
+import jwt
 
 from app.schemas.user import UserCreate, UserLogin
 from app.models.user import User
@@ -47,10 +48,31 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)) -> dict[str, str]
         else:
             raise HTTPException(status_code=401, detail="Invalid email or password")
 
+
 # use Depencds(bearer_auth) to get bearer token
 @auth_router.get("/me", status_code=200)
-def get_current_user(auth: HTTPAuthorizationCredentials = Depends(bearer_auth)):
-    payload = decode_access_token(auth.credentials)
-    if "sub" not in payload:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    
+def get_current_user(
+    auth: HTTPAuthorizationCredentials = Depends(bearer_auth),
+    db: Session = Depends(get_db),
+):
+    # payload should contains sub and exp
+    try:
+        payload = decode_access_token(auth.credentials)
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    sub = payload["sub"]
+
+    # user_id should be integer
+    try:
+        user_id = int(sub)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=401, detail="Invalid user id")
+
+    # query the user table to find user data, where User.id == user_id
+    stmt = select(User).where(User.id == user_id)
+    result = db.execute(stmt)
+    user = result.scalar_one_or_none()
+    if user:
+        return {"id": user.id, "email": user.email, "role": user.role}
+    else:
+        raise HTTPException(status_code=401, detail="Invalid user id")
