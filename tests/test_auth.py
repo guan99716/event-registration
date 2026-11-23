@@ -114,3 +114,8 @@ def test_get_current_user_success():
     assert response.json()["email"] == data["email"]
     # response doesn't contain hashed password 
     assert "hashed_password" not in response.json()
+
+
+def test_get_current_user_without_token():
+    response = client.get("/auth/me")
+    assert response.status_code == 401
