@@ -112,5 +112,5 @@ def test_get_current_user_success():
     assert response.status_code == 200
     # check email is correct
     assert response.json()["email"] == data["email"]
-    # reponse dosen't contain hashed password 
+    # response doesn't contain hashed password 
     assert "hashed_password" not in response.json()
