@@ -95,3 +95,22 @@ def test_decode_expired_token():
     token = jwt.encode(payload=payload, key=settings.jwt_secret_key, algorithm="HS256")
     with pytest.raises(jwt.ExpiredSignatureError):
         decode_access_token(token)
+
+
+# me
+def test_get_current_user_success():
+    # register a user
+    data = {"email": "test@example.com", "password": "Test123456!"}
+    response = client.post("/auth/register", json=data)
+    assert response.status_code == 201
+    # login and get access token
+    response = client.post("/auth/login", json=data)
+    assert response.status_code == 200
+    access_token = response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {access_token}"}
+    response = client.get("/auth/me", headers=headers)
+    assert response.status_code == 200
+    # check email is correct
+    assert response.json()["email"] == data["email"]
+    # reponse dosen't contain hashed password 
+    assert "hashed_password" not in response.json()
