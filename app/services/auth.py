@@ -24,8 +24,10 @@ def decode_access_token(token: str) -> dict:
 
 
 def generate_refresh_token() -> str:
+    # it return 43-character string
     return secrets.token_urlsafe(32)
 
 def hash_refresh_token(token: str) -> str:
+    # it return 64-character hexadecimal string
     return hashlib.sha256(token.encode()).hexdigest()
 

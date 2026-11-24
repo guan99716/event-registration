@@ -44,11 +44,11 @@ def test_login_success():
     response = client.post("/auth/login", json=data)
     assert response.status_code == 200
     assert "access_token" in response.json()
-    assert (
-        isinstance(response.json()["access_token"], str)
-        and response.json()["access_token"] != ""
-    )
+    assert isinstance(response.json()["access_token"], str)
+    assert response.json()["access_token"] != ""
     assert response.json()["token_type"] == "bearer"
+    assert isinstance(response.json()["refresh_token"], str)
+    assert response.json()["refresh_token"] != ""
 
 
 def test_login_wrong_password():

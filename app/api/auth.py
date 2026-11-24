@@ -4,11 +4,18 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from pwdlib import PasswordHash
 import jwt
+from datetime import datetime, timezone, timedelta
 
 from app.schemas.user import UserCreate, UserLogin
 from app.models.user import User
+from app.models.refresh_token import RefreshToken
 from app.database import get_db
-from app.services.auth import create_access_token, decode_access_token
+from app.services.auth import (
+    create_access_token,
+    decode_access_token,
+    generate_refresh_token,
+    hash_refresh_token,
+)
 
 auth_router = APIRouter(prefix="/auth")
 bearer_auth = HTTPBearer()
@@ -36,15 +43,29 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)) -> dict[str, 
 def login(user_data: UserLogin, db: Session = Depends(get_db)) -> dict[str, str]:
     stmt = select(User).where(User.email == user_data.email)
     result = db.execute(stmt)
-    existing_user = result.scalar_one_or_none()
-    if not existing_user:
+    user = result.scalar_one_or_none()
+    if not user:
         raise HTTPException(status_code=401, detail="Invalid email or password")
     else:
         # if password valid, return access token, else raise error
-        valid = password_hash.verify(user_data.password, existing_user.hashed_password)
+        valid = password_hash.verify(user_data.password, user.hashed_password)
         if valid:
-            access_token = create_access_token(existing_user.id)
-            return {"access_token": access_token, "token_type": "bearer"}
+            access_token = create_access_token(user.id)
+            refresh_token = generate_refresh_token()
+            refresh_token_hashed = hash_refresh_token(refresh_token)
+            # store refresh_token_hashed to database
+            new_refresh_token_hashed = RefreshToken(
+                user_id=user.id,
+                token_hash=refresh_token_hashed,
+                expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+            )
+            db.add(new_refresh_token_hashed)
+            db.commit()
+            return {
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "token_type": "bearer",
+            }
         else:
             raise HTTPException(status_code=401, detail="Invalid email or password")
 
