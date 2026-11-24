@@ -2,12 +2,21 @@ from fastapi.testclient import TestClient
 import pytest
 import jwt
 from datetime import datetime, timezone, timedelta
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import Session
 
 from app.main import app
-from app.services.auth import create_access_token, decode_access_token
+from app.services.auth import (
+    create_access_token,
+    decode_access_token,
+    hash_refresh_token,
+)
 from app.config import settings
+from app.models.refresh_token import RefreshToken
+from app.models.user import User
 
 client = TestClient(app)
+engine = create_engine(settings.database_url)
 
 
 # register
@@ -37,18 +46,36 @@ def test_register_duplicate_email():
 # login
 def test_login_success():
     # register a valid account first
-    data = {"email": "valid-email@example.com", "password": "Test123456!"}
-    response = client.post("/auth/register", json=data)
+    user_data = {"email": "valid-email@example.com", "password": "Test123456!"}
+    response = client.post("/auth/register", json=user_data)
     assert response.status_code == 201
     # use this data to login, and it is expected to login successfully
-    response = client.post("/auth/login", json=data)
+    response = client.post("/auth/login", json=user_data)
     assert response.status_code == 200
-    assert "access_token" in response.json()
-    assert isinstance(response.json()["access_token"], str)
-    assert response.json()["access_token"] != ""
-    assert response.json()["token_type"] == "bearer"
-    assert isinstance(response.json()["refresh_token"], str)
-    assert response.json()["refresh_token"] != ""
+    # login data: "access_token", "refresh_token", "token_type"
+    token_data = response.json()
+    # access token
+    assert "access_token" in token_data
+    assert isinstance(token_data["access_token"], str)
+    assert token_data["access_token"] != ""
+    # refresh_token
+    assert "refresh_token" in token_data
+    assert token_data["token_type"] == "bearer"
+    assert isinstance(token_data["refresh_token"], str)
+    assert token_data["refresh_token"] != ""
+    # check refresh is stored in database
+    with Session(engine) as db:
+        stmt = select(RefreshToken).where(
+            RefreshToken.token_hash == hash_refresh_token(token_data["refresh_token"])
+        )
+        result = db.execute(stmt)
+        stored_token = result.scalar_one_or_none()
+        # get user_id
+        stmt = select(User).where(User.email == user_data["email"])
+        result = db.execute(stmt)
+        user = result.scalar_one_or_none()
+        assert stored_token is not None
+        assert stored_token.user_id == user.id
 
 
 def test_login_wrong_password():
