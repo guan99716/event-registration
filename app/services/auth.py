@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 import jwt
 import secrets
+import hashlib
 from app.config import settings
 
 
@@ -24,4 +25,7 @@ def decode_access_token(token: str) -> dict:
 
 def generate_refresh_token() -> str:
     return secrets.token_urlsafe(32)
+
+def hash_refresh_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
 
