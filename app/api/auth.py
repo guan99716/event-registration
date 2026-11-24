@@ -7,6 +7,7 @@ import jwt
 from datetime import datetime, timezone, timedelta
 
 from app.schemas.user import UserCreate, UserLogin
+from app.schemas.auth import RefreshTokenRequest
 from app.models.user import User
 from app.models.refresh_token import RefreshToken
 from app.database import get_db
@@ -97,3 +98,38 @@ def get_current_user(
         return {"id": user.id, "email": user.email, "role": user.role}
     else:
         raise HTTPException(status_code=401, detail="Invalid user id")
+
+
+@auth_router.post("/refresh", status_code=200)
+def request_refresh_token(data: RefreshTokenRequest, db: Session = Depends(get_db)):
+    refresh_token_hashed = hash_refresh_token(data.refresh_token)
+    stmt = select(RefreshToken).where(refresh_token_hashed == RefreshToken.token_hash)
+    result = db.execute(stmt)
+    stored_token = result.scalar_one_or_none()
+    if not stored_token:
+        raise HTTPException(status_code=401, detail="Invalid fresh token")
+    else:
+        if (
+            stored_token.expires_at <= datetime.now(timezone.utc)
+            or stored_token.revoked_at is not None
+        ):
+            raise HTTPException(status_code=401, detail="Invalid fresh token")
+        else:
+            # generate new access and refresh tokens
+            access_token = create_access_token(stored_token.user_id)
+            refresh_token = generate_refresh_token()
+            refresh_token_hashed = hash_refresh_token(refresh_token)
+            stored_token.revoked_at = datetime.now(timezone.utc)
+            new_token = RefreshToken(
+                user_id=stored_token.user_id,
+                token_hash=refresh_token_hashed,
+                expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+            )
+            db.add(new_token)
+            db.commit()
+
+            return {
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "token_type": "bearer",
+            }
