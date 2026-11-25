@@ -94,7 +94,7 @@ def test_login_nonexistent_user():
     assert response.status_code == 401
 
 
-# token
+# decode access token
 def test_decode_access_token():
     access_token = create_access_token(123)
     decoded_payload = decode_access_token(access_token)
@@ -122,6 +122,7 @@ def test_decode_expired_token():
         decode_access_token(token)
 
 
+# refresh token success
 def test_refresh_token_success():
     # register
     user_data = {"email": "valid-email@example.com", "password": "Test123456!"}
@@ -169,6 +170,34 @@ def test_refresh_token_success():
         assert stored_token_new.revoked_at is None
         # check user_id is the same
         assert stored_token_new.user_id == stored_token_old.user_id
+
+
+# refresh token invalid
+def test_refresh_token_invalid():
+    token_data = {"refresh_token": "this_is_an_invalid_refresh_token"}
+    response = client.post("/auth/refresh", json=token_data)
+    assert response.status_code == 401
+
+
+def test_refresh_token_expired():
+    refresh_token = "this_is_a_test_refresh_token_hashed"
+    refresh_token_hashed = hash_refresh_token(refresh_token)
+    with Session(engine) as db:
+        user = User(
+            id=123, email="valid-email@example.com", hashed_password="abcdefg"
+        )
+        test_token = RefreshToken(
+            user_id=123,
+            token_hash=refresh_token_hashed,
+            expires_at=datetime.now(timezone.utc) - timedelta(days=7),
+        )
+        db.add(user)
+        db.flush()
+        db.add(test_token)
+        db.commit()
+    token_data = {"refresh_token": refresh_token}
+    response = client.post("/auth/refresh", json=token_data)
+    assert response.status_code == 401
 
 
 # me
