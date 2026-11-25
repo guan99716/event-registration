@@ -68,12 +68,10 @@ def test_login_success():
         stmt = select(RefreshToken).where(
             RefreshToken.token_hash == hash_refresh_token(token_data["refresh_token"])
         )
-        result = db.execute(stmt)
-        stored_token = result.scalar_one_or_none()
+        stored_token = db.execute(stmt).scalar_one_or_none()
         # get user_id
         stmt = select(User).where(User.email == user_data["email"])
-        result = db.execute(stmt)
-        user = result.scalar_one_or_none()
+        user = db.execute(stmt).scalar_one_or_none()
         assert stored_token is not None
         assert stored_token.user_id == user.id
 
@@ -146,6 +144,13 @@ def test_refresh_token_success():
     assert new_token_data["access_token"] != ""
     # differ from the older one
     assert new_token_data["refresh_token"] != old_refresh_token
+    # query to check old refresh token is revoked in database
+    # we should query by token_hash 
+    new_token_data_hashed = hash_refresh_token(new_token_data["refresh_token"])
+    with Session(engine) as db:
+        stmt = select(RefreshToken).where(new_token_data_hashed==RefreshToken.token_hash)
+        stored_token = db.execute(stmt).scalar_one_or_none().scalar_one_or_none()
+        assert stored_token is not None
 
 
 # me

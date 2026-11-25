@@ -27,9 +27,8 @@ password_hash = PasswordHash.recommended()
 @auth_router.post("/register", status_code=201)
 def register(user_data: UserCreate, db: Session = Depends(get_db)) -> dict[str, str]:
     stmt = select(User).where(User.email == user_data.email)
-    result = db.execute(stmt)
     # email is unique, each email appears at most once
-    existing_user = result.scalar_one_or_none()
+    existing_user = db.execute(stmt).scalar_one_or_none()
     if existing_user:
         raise HTTPException(status_code=409, detail="Email already registered")
     else:
@@ -43,8 +42,7 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)) -> dict[str, 
 @auth_router.post("/login", status_code=200)
 def login(user_data: UserLogin, db: Session = Depends(get_db)) -> dict[str, str]:
     stmt = select(User).where(User.email == user_data.email)
-    result = db.execute(stmt)
-    user = result.scalar_one_or_none()
+    user = db.execute(stmt).scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=401, detail="Invalid email or password")
     else:
@@ -92,8 +90,7 @@ def get_current_user(
 
     # query the user table to find user data, where User.id == user_id
     stmt = select(User).where(User.id == user_id)
-    result = db.execute(stmt)
-    user = result.scalar_one_or_none()
+    user = db.execute(stmt).scalar_one_or_none()
     if user:
         return {"id": user.id, "email": user.email, "role": user.role}
     else:
@@ -104,8 +101,7 @@ def get_current_user(
 def request_refresh_token(data: RefreshTokenRequest, db: Session = Depends(get_db)):
     refresh_token_hashed = hash_refresh_token(data.refresh_token)
     stmt = select(RefreshToken).where(refresh_token_hashed == RefreshToken.token_hash)
-    result = db.execute(stmt)
-    stored_token = result.scalar_one_or_none()
+    stored_token = db.execute(stmt).scalar_one_or_none()
     if not stored_token:
         raise HTTPException(status_code=401, detail="Invalid fresh token")
     else:
