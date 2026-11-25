@@ -137,20 +137,38 @@ def test_refresh_token_success():
     response = client.post("/auth/refresh", json=token_data)
     assert response.status_code == 200
     new_token_data = response.json()
+    new_refresh_token = new_token_data["refresh_token"]
+    new_access_token = new_token_data["access_token"]
     assert new_token_data["token_type"] == "bearer"
-    assert isinstance(new_token_data["refresh_token"], str)
-    assert new_token_data["refresh_token"] != ""
-    assert isinstance(new_token_data["access_token"], str)
-    assert new_token_data["access_token"] != ""
+    assert isinstance(new_refresh_token, str)
+    assert new_refresh_token != ""
+    assert isinstance(new_access_token, str)
+    assert new_access_token != ""
     # differ from the older one
-    assert new_token_data["refresh_token"] != old_refresh_token
-    # query to check old refresh token is revoked in database
-    # we should query by token_hash 
-    new_token_data_hashed = hash_refresh_token(new_token_data["refresh_token"])
+    assert new_refresh_token != old_refresh_token
+
+    # query by token_hash
+    new_refresh_token_hashed = hash_refresh_token(new_refresh_token)
+    old_refresh_token_hashed = hash_refresh_token(old_refresh_token)
+
     with Session(engine) as db:
-        stmt = select(RefreshToken).where(new_token_data_hashed==RefreshToken.token_hash)
-        stored_token = db.execute(stmt).scalar_one_or_none().scalar_one_or_none()
-        assert stored_token is not None
+        # check old refresh token is revoked in database
+        stmt1 = select(RefreshToken).where(
+            old_refresh_token_hashed == RefreshToken.token_hash
+        )
+        stored_token_old = db.execute(stmt1).scalar_one_or_none()
+        assert stored_token_old is not None
+        assert stored_token_old.revoked_at is not None
+
+        # check new refresh token is in the database, and is not revoked
+        stmt2 = select(RefreshToken).where(
+            new_refresh_token_hashed == RefreshToken.token_hash
+        )
+        stored_token_new = db.execute(stmt2).scalar_one_or_none()
+        assert stored_token_new is not None
+        assert stored_token_new.revoked_at is None
+        # check user_id is the same
+        assert stored_token_new.user_id == stored_token_old.user_id
 
 
 # me
