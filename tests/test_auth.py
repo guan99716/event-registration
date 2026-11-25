@@ -124,6 +124,30 @@ def test_decode_expired_token():
         decode_access_token(token)
 
 
+def test_refresh_token_success():
+    # register
+    user_data = {"email": "valid-email@example.com", "password": "Test123456!"}
+    response = client.post("/auth/register", json=user_data)
+    assert response.status_code == 201
+    # login
+    response = client.post("/auth/login", json=user_data)
+    assert response.status_code == 200
+    # get refresh token
+    old_refresh_token = response.json()["refresh_token"]
+    token_data = {"refresh_token": old_refresh_token}
+    # get new tokens
+    response = client.post("/auth/refresh", json=token_data)
+    assert response.status_code == 200
+    new_token_data = response.json()
+    assert new_token_data["token_type"] == "bearer"
+    assert isinstance(new_token_data["refresh_token"], str)
+    assert new_token_data["refresh_token"] != ""
+    assert isinstance(new_token_data["access_token"], str)
+    assert new_token_data["access_token"] != ""
+    # differ from the older one
+    assert new_token_data["refresh_token"] != old_refresh_token
+
+
 # me
 def test_get_current_user_success():
     # register a user
