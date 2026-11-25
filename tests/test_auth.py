@@ -178,18 +178,36 @@ def test_refresh_token_invalid():
     response = client.post("/auth/refresh", json=token_data)
     assert response.status_code == 401
 
-
+# expired
 def test_refresh_token_expired():
     refresh_token = "this_is_a_test_refresh_token_hashed"
     refresh_token_hashed = hash_refresh_token(refresh_token)
     with Session(engine) as db:
-        user = User(
-            id=123, email="valid-email@example.com", hashed_password="abcdefg"
-        )
+        user = User(id=123, email="valid-email@example.com", hashed_password="abcdefg")
         test_token = RefreshToken(
             user_id=123,
             token_hash=refresh_token_hashed,
             expires_at=datetime.now(timezone.utc) - timedelta(days=7),
+        )
+        db.add(user)
+        db.flush()
+        db.add(test_token)
+        db.commit()
+    token_data = {"refresh_token": refresh_token}
+    response = client.post("/auth/refresh", json=token_data)
+    assert response.status_code == 401
+
+# haven't expired, but revoked
+def test_refresh_token_revoked():
+    refresh_token = "this_is_a_test_refresh_token_hashed"
+    refresh_token_hashed = hash_refresh_token(refresh_token)
+    with Session(engine) as db:
+        user = User(id=123, email="valid-email@example.com", hashed_password="abcdefg")
+        test_token = RefreshToken(
+            user_id=123,
+            token_hash=refresh_token_hashed,
+            expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+            revoked_at=datetime.now(timezone.utc),
         )
         db.add(user)
         db.flush()
